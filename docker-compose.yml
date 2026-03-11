@@ -3,8 +3,18 @@ services:
     build: .
     ports:
       - "8000:8000"
-    env_file:
-      - .env
+    environment:
+      - BATCHLLM_API_KEY=${BATCHLLM_API_KEY:-changeme}
+      - BATCHLLM_DEFAULT_MODEL=${BATCHLLM_DEFAULT_MODEL:-moonshot/moonshot-v1-8k}
+      - BATCHLLM_DEFAULT_CONCURRENCY=${BATCHLLM_DEFAULT_CONCURRENCY:-10}
+      - BATCHLLM_DEFAULT_MAX_RETRIES=${BATCHLLM_DEFAULT_MAX_RETRIES:-3}
+      - BATCHLLM_DEFAULT_TEMPERATURE=${BATCHLLM_DEFAULT_TEMPERATURE:-0.7}
+      - BATCHLLM_DEFAULT_MAX_TOKENS=${BATCHLLM_DEFAULT_MAX_TOKENS:-1024}
+      - BATCHLLM_DATA_DIR=${BATCHLLM_DATA_DIR:-./data}
+      # LLM provider API keys
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
