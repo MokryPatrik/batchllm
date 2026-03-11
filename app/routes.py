@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth import verify_api_key
-from app.config import settings
-from app.job_store import job_store
+from app.job_store import _QueuedJob, job_store
 from app.models import (
     CancelJobResponse,
     CreateJobRequest,
     CreateJobResponse,
     JobDetail,
     JobListResponse,
-    LLMRequest,
 )
-from app.processor import process_batch
 
 router = APIRouter(dependencies=[Depends(verify_api_key)])
 
@@ -27,17 +23,17 @@ async def create_job(body: CreateJobRequest) -> CreateJobResponse:
         raise HTTPException(status_code=400, detail="No requests provided")
 
     # Assign IDs to requests that don't have one
-    for i, req in enumerate(body.requests):
+    for req in body.requests:
         if req.id is None:
             req.id = f"req_{uuid.uuid4().hex[:8]}"
 
     job = job_store.create_job(total_requests=len(body.requests))
 
-    # Launch processing in the background
-    asyncio.create_task(
-        process_batch(
-            requests=body.requests,
+    # Enqueue for sequential processing
+    await job_store.enqueue(
+        _QueuedJob(
             job=job,
+            requests=body.requests,
             model=body.model,
             concurrency=body.concurrency,
             max_retries=body.max_retries,
