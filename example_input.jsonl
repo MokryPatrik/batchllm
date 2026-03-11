@@ -1,0 +1,5 @@
+{"id": "req_001", "messages": [{"role": "user", "content": "What is 2+2?"}]}
+{"id": "req_002", "messages": [{"role": "user", "content": "Write a haiku about programming"}]}
+{"id": "req_003", "messages": [{"role": "user", "content": "Explain what an API is in one sentence"}]}
+{"id": "req_004", "messages": [{"role": "user", "content": "What is the capital of France?"}]}
+{"id": "req_005", "messages": [{"role": "user", "content": "List 3 benefits of unit testing"}]}
