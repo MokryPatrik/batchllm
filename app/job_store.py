@@ -92,11 +92,35 @@ class JobState:
         )
 
 
+class _QueuedJob:
+    """A job waiting to be processed, bundled with its parameters."""
+
+    def __init__(
+        self,
+        job: JobState,
+        requests: list,
+        model: str | None,
+        concurrency: int | None,
+        max_retries: int | None,
+        temperature: float | None,
+        max_tokens: int | None,
+    ) -> None:
+        self.job = job
+        self.requests = requests
+        self.model = model
+        self.concurrency = concurrency
+        self.max_retries = max_retries
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+
+
 class JobStore:
-    """In-memory store for all jobs."""
+    """In-memory store for all jobs. Processes jobs sequentially via an async queue."""
 
     def __init__(self) -> None:
         self._jobs: dict[str, JobState] = {}
+        self._queue: asyncio.Queue[_QueuedJob] = asyncio.Queue()
+        self._worker_task: asyncio.Task | None = None
 
     def create_job(self, total_requests: int) -> JobState:
         job_id = f"job_{uuid.uuid4().hex[:12]}"
@@ -104,11 +128,59 @@ class JobStore:
         self._jobs[job_id] = job
         return job
 
+    async def enqueue(self, queued_job: _QueuedJob) -> None:
+        await self._queue.put(queued_job)
+
     def get_job(self, job_id: str) -> JobState | None:
         return self._jobs.get(job_id)
 
     def list_jobs(self) -> list[JobSummary]:
         return [job.to_summary() for job in self._jobs.values()]
+
+    @property
+    def queue_size(self) -> int:
+        return self._queue.qsize()
+
+    async def start_worker(self) -> None:
+        """Start the background worker that processes jobs one by one."""
+        import logging
+        from app.processor import process_batch
+
+        logger = logging.getLogger("batchllm.worker")
+
+        async def _worker() -> None:
+            logger.info("Job queue worker started")
+            while True:
+                queued = await self._queue.get()
+                job = queued.job
+                logger.info(
+                    "Starting job %s (%d requests, %d jobs still queued)",
+                    job.job_id,
+                    job.total_requests,
+                    self._queue.qsize(),
+                )
+                try:
+                    await process_batch(
+                        requests=queued.requests,
+                        job=job,
+                        model=queued.model,
+                        concurrency=queued.concurrency,
+                        max_retries=queued.max_retries,
+                        temperature=queued.temperature,
+                        max_tokens=queued.max_tokens,
+                    )
+                except Exception:
+                    logger.exception("Job %s crashed", job.job_id)
+                    job.mark_finished()
+                finally:
+                    self._queue.task_done()
+
+        self._worker_task = asyncio.create_task(_worker())
+
+    async def stop_worker(self) -> None:
+        if self._worker_task:
+            self._worker_task.cancel()
+            self._worker_task = None
 
 
 # Singleton
