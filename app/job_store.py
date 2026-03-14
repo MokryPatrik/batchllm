@@ -72,11 +72,15 @@ class JobState:
             finished_at=self.finished_at,
         )
 
-    def to_detail(self) -> JobDetail:
+    def to_detail(self, limit: int = 50, offset: int = 0) -> JobDetail:
         results: list[RequestResult] = []
         if self._results_path.exists():
             with open(self._results_path) as f:
-                for line in f:
+                for i, line in enumerate(f):
+                    if i < offset:
+                        continue
+                    if len(results) >= limit:
+                        break
                     line = line.strip()
                     if line:
                         results.append(RequestResult.model_validate_json(line))
@@ -89,6 +93,8 @@ class JobState:
             created_at=self.created_at,
             finished_at=self.finished_at,
             results=results,
+            limit=limit,
+            offset=offset,
         )
 
 

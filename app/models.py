@@ -61,6 +61,8 @@ class JobSummary(BaseModel):
 
 class JobDetail(JobSummary):
     results: list[RequestResult] = []
+    limit: int
+    offset: int
 
 
 class CreateJobResponse(BaseModel):

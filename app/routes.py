@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth import verify_api_key
 from app.job_store import _QueuedJob, job_store
@@ -56,11 +56,15 @@ async def list_jobs() -> JobListResponse:
 
 
 @router.get("/jobs/{job_id}", response_model=JobDetail)
-async def get_job(job_id: str) -> JobDetail:
+async def get_job(
+    job_id: str,
+    limit: int = Query(default=50, ge=1, le=500, description="Max results to return"),
+    offset: int = Query(default=0, ge=0, description="Number of results to skip"),
+) -> JobDetail:
     job = job_store.get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job.to_detail()
+    return job.to_detail(limit=limit, offset=offset)
 
 
 @router.delete("/jobs/{job_id}", response_model=CancelJobResponse)
