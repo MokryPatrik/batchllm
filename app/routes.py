@@ -58,7 +58,7 @@ async def list_jobs() -> JobListResponse:
 @router.get("/jobs/{job_id}", response_model=JobDetail)
 async def get_job(
     job_id: str,
-    limit: int = Query(default=50, ge=1, le=500, description="Max results to return"),
+    limit: int = Query(default=200, ge=1, le=500, description="Max results to return"),
     offset: int = Query(default=0, ge=0, description="Number of results to skip"),
 ) -> JobDetail:
     job = job_store.get_job(job_id)
